@@ -31,9 +31,10 @@ FROM quay.io/jupyterhub/k8s-hub:${K8S_HUB_VERSION} AS tmn-stateless-hub
 USER root
 
 COPY --from=wheel-build /dist/jupyterhub-*.whl /tmp/
+COPY requirements-tmn.txt /tmp/
 
 RUN pip install --no-cache-dir --no-deps --force-reinstall /tmp/jupyterhub-*.whl \
- && rm /tmp/jupyterhub-*.whl \
- && pip install --no-cache-dir "sentry-sdk==2.20.0"
+ && pip install --no-cache-dir -r /tmp/requirements-tmn.txt \
+ && rm /tmp/jupyterhub-*.whl /tmp/requirements-tmn.txt
 
 USER 1000
