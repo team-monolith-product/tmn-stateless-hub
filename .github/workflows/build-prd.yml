@@ -3,20 +3,6 @@ name: Build Prd
 on:
   push:
     branches: [main]
-    paths:
-      - jupyterhub/**
-      - share/**
-      - jsx/**
-      - bower-lite
-      - package.json
-      - package-lock.json
-      - pyproject.toml
-      - setup.py
-      - MANIFEST.in
-      - requirements.txt
-      - requirements-tmn.txt
-      - Dockerfile
-      - .github/workflows/build-prd.yml
 
 permissions:
   id-token: write
