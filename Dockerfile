@@ -15,8 +15,11 @@ ARG K8S_HUB_VERSION=4.3.2
 FROM python:3.12-bookworm AS wheel-build
 
 # Node.js 20 (Debian bookworm 기본은 18.x, jupyterhub 빌드 스크립트는 20을 가정)
+# git 은 setuptools_scm 의 file-finder 가 git ls-files 로 package_data 를
+# 결정하기 위해 필요. 없으면 alembic.ini 등 비-`.py` 파일이 wheel 에
+# 누락되어 런타임에 FileNotFoundError 발생.
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
- && apt-get install -y --no-install-recommends nodejs \
+ && apt-get install -y --no-install-recommends nodejs git \
  && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /src
