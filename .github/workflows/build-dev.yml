@@ -3,20 +3,6 @@ name: Build Dev
 on:
   push:
     branches: [develop]
-    paths:
-      - jupyterhub/**
-      - share/**
-      - jsx/**
-      - bower-lite
-      - package.json
-      - package-lock.json
-      - pyproject.toml
-      - setup.py
-      - MANIFEST.in
-      - requirements.txt
-      - requirements-tmn.txt
-      - Dockerfile
-      - .github/workflows/build-dev.yml
 
 permissions:
   id-token: write
