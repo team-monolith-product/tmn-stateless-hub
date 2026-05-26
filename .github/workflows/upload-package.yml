@@ -70,6 +70,16 @@ jobs:
       - name: Build wheel
         run: python -m build --wheel
 
+      # DEBUG: secret 이 reusable workflow 까지 전달되는지 확인 (length 만 출력).
+      # NEXUS_PYPI_MACHINE_PASSWORD 가 org level secret 인데 PUBLIC repo
+      # tmn-stateless-hub 에 access 풀리지 않으면 빈 string 으로 들어와 length=0.
+      - name: DEBUG nexus secret presence
+        env:
+          P: ${{ secrets.NEXUS_PYPI_MACHINE_PASSWORD }}
+        run: |
+          echo "secret length: ${#P}"
+          echo "is empty: $([ -z "$P" ] && echo yes || echo no)"
+
       - uses: pypa/gh-action-pypi-publish@27b31702a0e7fc50959f5ad993c78deac1bdfc29
         with:
           user: machine
