@@ -16,7 +16,7 @@ on:
     secrets:
       MACHINE_TOKEN:
         required: true
-      PYPI_MACHINE_PASSWORD:
+      NEXUS_PYPI_MACHINE_PASSWORD:
         required: true
 
 jobs:
@@ -74,7 +74,7 @@ jobs:
       - uses: pypa/gh-action-pypi-publish@27b31702a0e7fc50959f5ad993c78deac1bdfc29
         with:
           user: machine
-          password: ${{ secrets.PYPI_MACHINE_PASSWORD }}
+          password: ${{ secrets.NEXUS_PYPI_MACHINE_PASSWORD }}
           repository_url: ${{ inputs.repository_url }}
 
       - name: Checkout tmn-dockerfile
