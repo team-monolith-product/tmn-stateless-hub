@@ -1,8 +1,4 @@
 # tmn-stateless-hub fork 전용 런타임 의존성.
-#
-# upstream jupyterhub 의 pyproject.toml/requirements.txt 와 분리해 관리한다.
-# Dockerfile final stage 에서 z2jh k8s-hub 위에 install 된다 (jupyterhub
-# 본체는 --no-deps 로 wheel 만 덮어쓰므로 본 파일이 fork-specific 의존성의
-# 단일 출처가 된다).
 
 sentry-sdk==2.20.0
+
