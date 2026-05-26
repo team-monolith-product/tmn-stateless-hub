@@ -10,21 +10,6 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
 WORKDIR /src
 COPY . .
 
-# DEBUG: CI 의 setuptools_scm file-finder 가 "listing git files failed" 로 빈
-# 결과를 반환하는 원인 추적용. 결과 확인 후 본 RUN 은 즉시 제거한다.
-RUN echo "===== id =====" && id \
- && echo "===== /src owner =====" && ls -ld /src \
- && echo "===== /src content (top) =====" && ls -la /src | head -15 \
- && echo "===== .git owner =====" && ls -ld .git && ls -la .git | head -10 \
- && echo "===== git --version =====" && git --version \
- && echo "===== git status =====" && (git status 2>&1 | head -10 || true) \
- && echo "===== git ls-files jupyterhub head =====" && (git ls-files jupyterhub 2>&1 | head -10 || true) \
- && echo "===== git ls-files jupyterhub non-py =====" && (git ls-files jupyterhub 2>&1 | grep -v "\.py$" || true) \
- && echo "===== safe.directory after add =====" \
- && git config --global --add safe.directory /src \
- && (git ls-files jupyterhub 2>&1 | grep -v "\.py$" || true) \
- && echo "===== END DEBUG ====="
-
 RUN pip install --no-cache-dir build \
   && python -m build --wheel --outdir /dist
 

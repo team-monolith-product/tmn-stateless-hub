@@ -15,6 +15,12 @@ jobs:
       env: prd
       target: main
       dockerTarget: prd
+      # docker/build-push-action 의 default context 는 git context 라
+      # buildkit 이 직접 shallow clone 해 .git 디렉토리가 빠진다. 결과적으로
+      # wheel-build 의 setuptools_scm file-finder 가 `git ls-files` 실패로
+      # 빈 list 를 반환해 alembic.ini 등 비-py 파일이 wheel 에서 누락된다.
+      # buildContext 를 명시해 actions/checkout 의 file context 로 강제한다.
+      buildContext: .
       helmRepository: enk-opencode-hub-helm
       propertyPath: jupyterhub.hub.image.tag
       updateTargets: |
