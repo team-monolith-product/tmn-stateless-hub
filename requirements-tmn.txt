@@ -1,4 +1,0 @@
-# tmn-stateless-hub fork 전용 런타임 의존성.
-
-sentry-sdk==2.20.0
-

@@ -1,2 +1,0 @@
-# tmn-stateless-hub fork 의 prd 환경 전용 추가 의존성.
-

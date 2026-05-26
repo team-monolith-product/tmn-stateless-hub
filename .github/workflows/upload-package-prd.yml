@@ -1,0 +1,16 @@
+name: Upload Package Prd
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  upload:
+    uses: ./.github/workflows/upload-package.yml
+    with:
+      env: prd
+      repository_url: https://nexus.codle.io/repository/pypi-internal/
+      dockerfile_branch: main
+    secrets:
+      MACHINE_TOKEN: ${{ secrets.MACHINE_TOKEN }}
+      PYPI_MACHINE_PASSWORD: ${{ secrets.PYPI_MACHINE_PASSWORD_PRD }}

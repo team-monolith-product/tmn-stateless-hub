@@ -1,0 +1,16 @@
+name: Upload Package Dev
+
+on:
+  push:
+    branches: [develop]
+
+jobs:
+  upload:
+    uses: ./.github/workflows/upload-package.yml
+    with:
+      env: dev
+      repository_url: https://nexus.dev.codle.io/repository/pypi-internal/
+      dockerfile_branch: develop
+    secrets:
+      MACHINE_TOKEN: ${{ secrets.MACHINE_TOKEN }}
+      PYPI_MACHINE_PASSWORD: ${{ secrets.PYPI_MACHINE_PASSWORD }}
