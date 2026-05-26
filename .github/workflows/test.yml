@@ -78,9 +78,7 @@ jobs:
         # Python versions available at:
         #   https://github.com/actions/python-versions/blob/HEAD/versions-manifest.json
         #
-        # 운영 매트릭스는 z2jh k8s-hub:4.3.2 가 사용하는 python 3.12 +
-        # 우리 helm chart 의 postgres 로 고정. 다른 python/db 조합은 upstream
-        # 검증 영역이고 우리 운영과 무관해 제거했다.
+        # AIDEV-NOTE: 불필요한 테스트 실행을 막기 위해 파이썬 버전과 db를 고정합니다.
         include:
           - python: "3.12"
             db: postgres
