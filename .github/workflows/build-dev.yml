@@ -14,7 +14,7 @@ jobs:
     with:
       env: dev
       target: develop
-      dockerTarget: tmn-stateless-hub
+      dockerTarget: tmn-stateless-hub-dev
       helmRepository: enk-opencode-hub-helm
       propertyPath: jupyterhub.hub.image.tag
       updateTargets: |

@@ -1,0 +1,6 @@
+# tmn-stateless-hub fork 의 prd 환경 전용 추가 의존성.
+#
+# requirements-tmn.txt (공통) 위에 prd 이미지에만 install 된다. Dockerfile
+# 의 tmn-stateless-hub-prd target 이 본 파일을 install 한다.
+#
+# 현재는 빈 placeholder. 필요한 패키지가 생기면 한 줄씩 추가한다.

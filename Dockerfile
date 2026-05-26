@@ -2,13 +2,18 @@
 #
 # tmn-stateless-hub 이미지
 #
-# build-stage: 우리 fork 소스에서 jupyterhub wheel을 빌드한다. jupyterhub
+# wheel-build stage: 우리 fork 소스에서 jupyterhub wheel을 빌드한다. jupyterhub
 # setup.py는 빌드 시점에 npm/sass/jsx를 호출하므로 node를 함께 설치한다.
 #
-# final stage: z2jh 표준 hub 이미지 위에 우리 wheel을 --no-deps로 덮어쓴다.
-# z2jh가 핀한 kubespawner·oauthenticator·idle-culler·sqlalchemy 의존성은
-# 그대로 유지하고 jupyterhub Python 패키지만 우리 fork로 교체한다.
-# sentry-sdk 는 기존 tmn-dockerfile/opencode-hub의 1라인 추가분을 흡수한다.
+# base stage: z2jh 표준 hub 이미지 위에 우리 wheel과 공통 의존성을
+# (requirements-tmn.txt) 올린다. z2jh가 핀한 kubespawner·oauthenticator·
+# idle-culler·sqlalchemy 의존성은 그대로 유지하고 jupyterhub Python 패키지만
+# 우리 fork로 교체한다.
+#
+# tmn-stateless-hub-dev / tmn-stateless-hub-prd: base 위에 각 환경 전용
+# 의존성(requirements-tmn-{env}.txt)만 더 install 한 분리 target. dev 에만
+# 필요한 디버깅 도구 등을 prd 이미지에 흘리지 않기 위한 경계. workflow
+# build-{env}.yml 의 dockerTarget 으로 1:1 매핑된다.
 
 ARG K8S_HUB_VERSION=4.3.2
 
@@ -29,7 +34,7 @@ RUN pip install --no-cache-dir build \
  && python -m build --wheel --outdir /dist
 
 
-FROM quay.io/jupyterhub/k8s-hub:${K8S_HUB_VERSION} AS tmn-stateless-hub
+FROM quay.io/jupyterhub/k8s-hub:${K8S_HUB_VERSION} AS base
 
 USER root
 
@@ -39,5 +44,21 @@ COPY requirements-tmn.txt /tmp/
 RUN pip install --no-cache-dir --no-deps --force-reinstall /tmp/jupyterhub-*.whl \
  && pip install --no-cache-dir -r /tmp/requirements-tmn.txt \
  && rm /tmp/jupyterhub-*.whl /tmp/requirements-tmn.txt
+
+
+FROM base AS tmn-stateless-hub-dev
+
+COPY requirements-tmn-dev.txt /tmp/
+RUN pip install --no-cache-dir -r /tmp/requirements-tmn-dev.txt \
+ && rm /tmp/requirements-tmn-dev.txt
+
+USER 1000
+
+
+FROM base AS tmn-stateless-hub-prd
+
+COPY requirements-tmn-prd.txt /tmp/
+RUN pip install --no-cache-dir -r /tmp/requirements-tmn-prd.txt \
+ && rm /tmp/requirements-tmn-prd.txt
 
 USER 1000
