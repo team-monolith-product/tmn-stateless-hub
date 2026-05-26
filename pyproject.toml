@@ -88,6 +88,18 @@ include-package-data = true
 where = [""]
 include = ["jupyterhub*"]
 
+# AIDEV-NOTE: setuptools_scm 의 file-finder 가 Docker buildkit 환경의
+# git ownership 문제로 빈 결과를 반환해 alembic.ini, *.mako, *.html,
+# *.yaml 등 비-`.py` 파일이 wheel 에서 누락된다. 명시 list 로 우회한다.
+# upstream 이 새 비-py 파일을 추가하면 본 list 도 함께 갱신해야 한다.
+[tool.setuptools.package-data]
+jupyterhub = [
+  "alembic.ini",
+  "alembic/**/*",
+  "singleuser/templates/**/*",
+  "event-schemas/**/*",
+]
+
 # dynamic sources of metadata in other files
 [tool.setuptools.dynamic]
 readme = { file = "README.md", content-type = "text/markdown" }
