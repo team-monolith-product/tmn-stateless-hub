@@ -13,4 +13,4 @@ jobs:
       dockerfile_branch: develop
     secrets:
       MACHINE_TOKEN: ${{ secrets.MACHINE_TOKEN }}
-      PYPI_MACHINE_PASSWORD: ${{ secrets.PYPI_MACHINE_PASSWORD }}
+      NEXUS_PYPI_MACHINE_PASSWORD: ${{ secrets.NEXUS_PYPI_MACHINE_PASSWORD }}
