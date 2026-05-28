@@ -1,0 +1,105 @@
+name: Upload Package
+
+on:
+  workflow_call:
+    inputs:
+      env:
+        required: true
+        type: string
+      repository_url:
+        required: true
+        type: string
+      dockerfile_branch:
+        required: true
+        type: string
+        description: tmn-dockerfile 의 어느 브랜치에 jupyterhub pin 을 commit/push 할지 (dev → develop, prd → main).
+    secrets:
+      MACHINE_TOKEN:
+        required: true
+      NEXUS_PYPI_MACHINE_PASSWORD:
+        required: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install deps
+        run: pip install --no-cache-dir tbump build
+
+      # dev 만 자동 bump. prd 는 사람이 PR 머지 시 pyproject.toml 의 version 을
+      # 수동으로 변경해 둔다. (같은 version 으로 nexus 재 upload 시 reject 되어
+      # workflow fail. 이때 main 의 version 을 갱신해 다시 push.)
+      #
+      # upstream 의 `[tool.tbump]` 설정을 그대로 활용. tbump 가 pyproject.toml +
+      # jupyterhub/_version.py + docs/source/_static/rest-api.yml 을 동시에 정합
+      # 갱신한다. --only-patch 로 git 작업은 우리가 명시 메시지로 직접 수행.
+      - name: Bump dev version
+        if: inputs.env == 'dev'
+        run: |
+          git config --global user.email "github.machine.monolith@gmail.com"
+          git config --global user.name "github-machine-monolith"
+          CURRENT=$(tbump current-version)
+          if [[ "$CURRENT" =~ ^([0-9]+\.[0-9]+\.[0-9]+)b([0-9]+)$ ]]; then
+            NEW="${BASH_REMATCH[1]}b$((BASH_REMATCH[2]+1))"
+          elif [[ "$CURRENT" =~ ^([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+            NEW="${BASH_REMATCH[1]}b1"
+          else
+            echo "unsupported version format: $CURRENT" >&2
+            exit 1
+          fi
+          tbump --non-interactive --only-patch "$NEW"
+          git add -A
+          git commit -m "auto: 버전 업 → ${NEW}"
+          git push
+
+      - id: version
+        run: echo "version=$(tbump current-version)" >> $GITHUB_OUTPUT
+
+      - name: Build wheel
+        run: python -m build --wheel
+
+      - uses: pypa/gh-action-pypi-publish@27b31702a0e7fc50959f5ad993c78deac1bdfc29
+        with:
+          user: machine
+          password: ${{ secrets.NEXUS_PYPI_MACHINE_PASSWORD }}
+          repository_url: ${{ inputs.repository_url }}
+
+      - name: Checkout tmn-dockerfile
+        uses: actions/checkout@v4
+        with:
+          repository: team-monolith-product/tmn-dockerfile
+          ref: ${{ inputs.dockerfile_branch }}
+          path: tmn-dockerfile
+          token: ${{ secrets.MACHINE_TOKEN }}
+
+      - name: Update jupyterhub pin in tmn-dockerfile
+        env:
+          ENV: ${{ inputs.env }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          REQ="tmn-dockerfile/stateless-hub/requirements-${ENV}-server.txt"
+          sed -i.bak -E "s/^jupyterhub==.*/jupyterhub==${VERSION}/" "$REQ"
+          rm "${REQ}.bak"
+
+      - name: Commit and push tmn-dockerfile
+        env:
+          TARGET: ${{ inputs.dockerfile_branch }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          cd tmn-dockerfile
+          git config --global user.email "github.machine.monolith@gmail.com"
+          git config --global user.name "github-machine-monolith"
+          git commit -am "auto: stateless-hub jupyterhub pin → ${VERSION}"
+          git push -u origin "${TARGET}"
