@@ -7,7 +7,6 @@ polling reflector 캐시(camelCase dict)를 정상적으로 읽는지 확인하�
 
 import asyncio
 import logging
-from unittest.mock import MagicMock
 
 import pytest
 
@@ -19,19 +18,6 @@ from jupyterhub.polling_spawner import (
 )
 
 log = logging.getLogger("test.polling_spawner")
-
-
-@pytest.fixture(autouse=True)
-def offline_k8s_client(monkeypatch):
-    """KubeSpawner.__init__ 의 load_config/shared_client 가 실제 클러스터 설정을 읽지 않게 한다.
-
-    이게 없으면 인스턴스화 시 in-cluster/kube-config 로드를 시도해, 로컬 ~/.kube/config 유무에
-    따라 결과가 갈린다(kube-config 있는 로컬은 통과, 없는 CI 는 ConfigException 으로 실패).
-    """
-    import kubespawner.spawner as ks
-
-    monkeypatch.setattr(ks, "load_config", lambda *a, **k: None)
-    monkeypatch.setattr(ks, "shared_client", lambda *a, **k: MagicMock())
 
 
 class _StubReflector(_PollingReflectorMixin):
