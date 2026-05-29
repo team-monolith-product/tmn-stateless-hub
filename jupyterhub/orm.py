@@ -36,6 +36,7 @@ from sqlalchemy.orm import (
     Session,
     declarative_base,
     declared_attr,
+    deferred,
     interfaces,
     joinedload,
     object_session,
@@ -431,10 +432,14 @@ class Spawner(Base):
 
     started = Column(DateTime)
     last_activity = Column(DateTime, nullable=True)
-    # spawn lifecycle 상태. DB 가 SoT 이므로 어떤 hub replica 든 이 컬럼으로 상태를 판단하고
-    # takeover/cull 을 결정한다. 기존 row 는 server_default 로 'stopped' 가 된다.
-    phase = Column(
-        Unicode(16), nullable=False, server_default=Phase.STOPPED, index=True
+    # spawn lifecycle 상태. DB 가 SoT 이므로 어떤 hub replica 든 이 컬럼으로 상태를 판단한다.
+    # 기존 row 는 server_default 로 'stopped' 가 된다.
+    # AIDEV-NOTE: deferred 로 둔다. 이 컬럼은 head 마이그레이션에서 추가되는데, 옛
+    # 마이그레이션(예: 651f5419b74d)이 Spawner 를 ORM 로드할 때 기본 SELECT 에 phase 가 끼면
+    # 그 시점 DB 에 컬럼이 없어 test_upgrade 가 깨진다. deferred 면 기본 SELECT 에서 빠지고
+    # 실제 .phase 접근 시에만 로드된다. 여러 row 의 phase 가 필요한 쿼리는 undefer 로 끌어온다.
+    phase = deferred(
+        Column(Unicode(16), nullable=False, server_default=Phase.STOPPED, index=True)
     )
     user_options = Column(JSONDict)
 

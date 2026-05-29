@@ -138,7 +138,7 @@ async def test_poll_reads_db_phase(monkeypatch, phase, expected):
     s.db.refresh = MagicMock()
 
     assert await s.poll() == expected
-    s.db.refresh.assert_called_once_with(s.orm_spawner)
+    s.db.refresh.assert_called_once_with(s.orm_spawner, ["phase"])
 
 
 async def test_reflector_disabled(monkeypatch):

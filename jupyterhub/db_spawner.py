@@ -190,10 +190,11 @@ class DBSpawner(KubeSpawner):
         return (await self._read_pod()) is None
 
     async def poll(self):
-        # DB 가 SoT. 다른 replica 의 phase 변경을 반영하기 위해 row 를 refresh 한다.
+        # DB 가 SoT. 다른 replica 의 phase 변경을 반영하기 위해 phase 를 refresh 한다.
+        # phase 는 deferred 컬럼이라 attribute_names 로 명시해 한 번에 로드한다.
         # 죽은 Pod 의 phase 보정은 hub-leader 의 orphan reconcile 이 담당하므로 여기서 K8s GET 은
         # 하지 않는다(hot path 비용 절감).
-        self.db.refresh(self.orm_spawner)
+        self.db.refresh(self.orm_spawner, ["phase"])
         phase = self.orm_spawner.phase
         if phase in (Phase.PENDING, Phase.STARTING, Phase.RUNNING):
             return None
