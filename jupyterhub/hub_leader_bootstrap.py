@@ -11,7 +11,7 @@ import uuid
 from functools import partial
 
 from .hub_leader import HubLeader
-from .idle_culler import idle_cull, orphan_reconcile
+from .reconciler import orphan_reconcile
 
 
 def build_leader(
@@ -21,22 +21,20 @@ def build_leader(
     namespace,
     pod_name,
     *,
-    cull_timeout_s=3600,
-    cull_interval_s=60,
     reconcile_interval_s=300,
     label_selector="component=singleuser-server",
     lease_name="jupyterhub-hub-leader",
 ):
-    """idle_cull 과 orphan_reconcile 을 등록한 HubLeader 를 만든다(기동은 하지 않음)."""
+    """orphan_reconcile 을 등록한 HubLeader 를 만든다(기동은 하지 않음).
+
+    idle culling 은 본 task scope 밖이다. 후속 task 에서 leader.register(callback, interval)
+    한 줄로 추가한다.
+    """
     leader = HubLeader(
         coordination_api,
         namespace,
         f"{pod_name}-{uuid.uuid4().hex[:8]}",
         lease_name=lease_name,
-    )
-    leader.register(
-        partial(idle_cull, session_factory, core_api, namespace, cull_timeout_s),
-        cull_interval_s,
     )
     leader.register(
         partial(

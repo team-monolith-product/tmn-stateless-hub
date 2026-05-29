@@ -9,17 +9,16 @@ from unittest.mock import MagicMock
 from jupyterhub.hub_leader_bootstrap import build_leader
 
 
-def test_build_leader_registers_cull_and_reconcile():
+def test_build_leader_registers_orphan_reconcile():
     leader = build_leader(
         MagicMock(),
         MagicMock(),
         MagicMock(),
         "ns",
         "hub-0",
-        cull_interval_s=60,
         reconcile_interval_s=300,
     )
 
-    assert [interval for _, interval in leader._tasks] == [60, 300]
+    assert [interval for _, interval in leader._tasks] == [300]
     assert leader.namespace == "ns"
     assert leader.identity.startswith("hub-0-")
