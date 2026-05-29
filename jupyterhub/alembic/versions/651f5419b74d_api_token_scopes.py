@@ -29,9 +29,21 @@ def access_scopes(oauth_client: orm.OAuthClient, db: Session):
     scopes = set()
     if oauth_client.identifier == "jupyterhub":
         return frozenset()
-    spawner = oauth_client.spawner
-    if spawner:
-        scopes.add(f"access:servers!server={spawner.user.name}/{spawner.name}")
+    # INF-232: spawner 조회를 raw SQL 로 한다. ORM 으로 oauth_client.spawner 를 로드하면
+    # head 마이그레이션에서 추가된 spawners.phase 가 SELECT 에 포함돼, 이 시점 DB 에 아직
+    # 없는 컬럼으로 UndefinedColumn 이 난다. 아래 services 조회와 동일한 raw SQL 패턴.
+    spawner_row = db.execute(
+        text(
+            "SELECT s.name AS server_name, u.name AS user_name "
+            "FROM spawners s JOIN users u ON u.id = s.user_id "
+            "WHERE s.oauth_client_id = :identifier"
+        ),
+        {"identifier": oauth_client.identifier},
+    ).fetchone()
+    if spawner_row:
+        scopes.add(
+            f"access:servers!server={spawner_row.user_name}/{spawner_row.server_name}"
+        )
     else:
         statement = "SELECT * FROM services WHERE oauth_client_id = :identifier"
         service = db.execute(
