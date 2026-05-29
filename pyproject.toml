@@ -45,6 +45,9 @@ test = [
   # against by default
   "cryptography",
   "jsonschema",
+  # PollingKubeSpawner(jupyterhub/polling_spawner.py) 테스트용. prod 이미지(z2jh 4.3.2)와
+  # 동일 버전으로 핀해 reflector internal API 호환을 CI 에서 검증한다.
+  "jupyterhub-kubespawner==7.0.0",
   "jupyterlab>=3",
   "mock",
   # nbclassic provides the '/tree/' handler that we tests against in
