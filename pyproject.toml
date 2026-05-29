@@ -45,6 +45,9 @@ test = [
   # against by default
   "cryptography",
   "jsonschema",
+  # DBSpawner/HubLeader/idle_culler 테스트가 kubespawner 를 import 한다. prd 이미지(z2jh
+  # 4.3.2)와 동일 버전으로 핀해 reflector·manifest internal API 호환을 CI 에서 검증한다.
+  "jupyterhub-kubespawner==7.0.0",
   "jupyterlab>=3",
   "mock",
   # nbclassic provides the '/tree/' handler that we tests against in

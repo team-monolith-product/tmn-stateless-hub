@@ -385,6 +385,22 @@ class User(Base):
         return db.query(cls).filter(cls.name == name).first()
 
 
+class Phase:
+    """Spawner lifecycle 의 상태값.
+
+    DB(`spawners.phase`)에 저장되어 multi-replica hub 간에 공유되는 single source of
+    truth 다. PostgreSQL enum 대신 문자열 리터럴을 쓴다. SQLite 기반 테스트와 호환되고
+    additive migration 이 단순하기 때문이다.
+    """
+
+    PENDING = "pending"
+    STARTING = "starting"
+    RUNNING = "running"
+    STOPPING = "stopping"
+    STOPPED = "stopped"
+    FAILED = "failed"
+
+
 class Spawner(Base):
     """ "State about a Spawner"""
 
@@ -415,6 +431,11 @@ class Spawner(Base):
 
     started = Column(DateTime)
     last_activity = Column(DateTime, nullable=True)
+    # spawn lifecycle 상태. DB 가 SoT 이므로 어떤 hub replica 든 이 컬럼으로 상태를 판단하고
+    # takeover/cull 을 결정한다. 기존 row 는 server_default 로 'stopped' 가 된다.
+    phase = Column(
+        Unicode(16), nullable=False, server_default=Phase.STOPPED, index=True
+    )
     user_options = Column(JSONDict)
 
     # added in 2.0
