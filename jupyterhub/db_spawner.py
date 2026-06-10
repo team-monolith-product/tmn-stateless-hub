@@ -207,11 +207,22 @@ class DBSpawner(KubeSpawner):
     async def poll(self):
         # DB 가 SoT. 다른 replica 의 phase 변경을 반영하기 위해 phase 를 refresh 한다.
         # phase 는 deferred 컬럼이라 attribute_names 로 명시해 한 번에 로드한다.
-        # 죽은 Pod 의 phase 보정은 hub-leader 의 orphan reconcile 이 담당하므로 여기서 K8s GET 은
-        # 하지 않는다(hot path 비용 절감).
+        # 죽은 Pod 의 phase 보정은 hub-leader 의 orphan reconcile 이 담당하므로 active phase
+        # 의 hot path 에서는 K8s GET 을 하지 않는다.
         self.db.refresh(self.orm_spawner, ["phase"])
         phase = self.orm_spawner.phase
         if phase in (Phase.PENDING, Phase.STARTING, Phase.RUNNING):
+            return None
+        # 자가 치유: phase 가 비활성인데 실제 Pod 가 살아있으면 running 으로 승격한다.
+        # KubeSpawner -> DBSpawner cutover 직후가 대표 사례다. 기존 row 는 migration default 로
+        # phase='stopped' 인데 Pod 는 떠 있으므로, 이 GET 이 없으면 hub 가 init_spawners 에서
+        # 살아있는 서버를 종료로 판정해 server row 와 라우트를 정리해 버린다(dev 에서 재현됨).
+        pod = await self._read_pod()
+        if pod is not None and self.is_pod_running(pod):
+            self.log.info(
+                "Pod %s is alive while phase=%s; adopting as running", self.pod_name, phase
+            )
+            self._set_phase(Phase.RUNNING)
             return None
         # stopped 는 정상 종료(0), failed 는 비정상(1).
         return 0 if phase == Phase.STOPPED else 1

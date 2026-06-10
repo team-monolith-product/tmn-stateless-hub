@@ -156,9 +156,24 @@ async def test_stop_transitions_and_deletes(monkeypatch):
 async def test_poll_reads_db_phase(monkeypatch, phase, expected):
     s, _ = _make(monkeypatch, phase=phase)
     s.db.refresh = MagicMock()
+    # 비활성 phase 의 자가 치유 GET 은 Pod 부재로 응답.
+    monkeypatch.setattr(s, "_read_pod", AsyncMock(return_value=None))
 
     assert await s.poll() == expected
     s.db.refresh.assert_called_once_with(s.orm_spawner, ["phase"])
+    if expected is None:
+        # active phase 의 hot path 는 K8s GET 을 하지 않는다.
+        s._read_pod.assert_not_awaited()
+
+
+async def test_poll_adopts_live_pod_when_phase_inactive(monkeypatch):
+    """cutover 자가 치유: phase=stopped 인데 Pod 가 살아있으면 running 으로 승격한다."""
+    s, phases = _make(monkeypatch, phase=Phase.STOPPED)
+    s.db.refresh = MagicMock()
+    monkeypatch.setattr(s, "_read_pod", AsyncMock(return_value=_running_pod()))
+
+    assert await s.poll() is None
+    assert phases == [Phase.RUNNING]
 
 
 async def test_reflector_disabled(monkeypatch):
