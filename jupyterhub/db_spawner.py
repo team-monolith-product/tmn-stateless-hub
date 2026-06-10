@@ -18,9 +18,10 @@ from functools import partial
 from kubernetes_asyncio import client
 from kubernetes_asyncio.client.rest import ApiException
 from kubespawner import KubeSpawner
+from traitlets import default
 
 from jupyterhub.orm import Phase
-from jupyterhub.utils import exponential_backoff
+from jupyterhub.utils import exponential_backoff, maybe_future
 
 # AIDEV-NOTE: DBSpawner 는 KubeSpawner 의 아래 메서드를 재사용한다. 전면 재작성(=manifest 빌드까지
 # 복제)은 업스트림과 영구 분기를 만들기에, lifecycle 만 교체하고 빌더는 상속받는다. 업스트림이 이
@@ -32,6 +33,8 @@ for _m in (
     "_make_delete_pod_request",
     "_get_pod_url",
     "is_pod_running",
+    "_start",
+    "load_user_options",
 ):
     if not hasattr(KubeSpawner, _m):
         raise ImportError(
@@ -60,6 +63,12 @@ class DBSpawner(KubeSpawner):
 
     async def _start_watching_events(self, replace=False):
         return None
+
+    @default("events_enabled")
+    def _events_enabled_default(self):
+        # event reflector 를 쓰지 않으므로 progress() 에 공급할 k8s 이벤트 스트림이 없다.
+        # 기본 True 로 두면 progress 가 빈 이벤트로 무의미하게 돈다.
+        return False
 
     # --- 내부 헬퍼 ---
     def _set_phase(self, phase):
@@ -126,9 +135,17 @@ class DBSpawner(KubeSpawner):
         return self.is_pod_running(pod)
 
     # --- lifecycle ---
-    async def start(self):
+    # start() 는 KubeSpawner 의 sync wrapper 를 그대로 쓴다. wrapper 가 _start() 를
+    # _start_future 로 감싸 progress() 의 종료 신호로 삼기 때문에, async start() 를 직접
+    # override 하면 _start_future 가 비어 progress 가 끝나지 않는다.
+    async def _start(self):
         self._set_phase(Phase.PENDING)
         try:
+            # profile_list 의 kubespawner_override 와 user_options 를 spawner 속성에
+            # 적용한다. helm 의 동적 설정(volumes/init_containers/uid/gid)이 전부 이 경로로
+            # 들어오므로 get_pod_manifest() 전에 반드시 호출해야 한다.
+            await self.load_user_options()
+
             if self.storage_pvc_ensure:
                 pvc = self.get_pvc_manifest()
                 await exponential_backoff(
@@ -141,8 +158,6 @@ class DBSpawner(KubeSpawner):
 
             pod = await self.get_pod_manifest()
             if self.modify_pod_hook:
-                from jupyterhub.utils import maybe_future
-
                 pod = await maybe_future(self.modify_pod_hook(self, pod))
             self._tag_pod(pod)
 
