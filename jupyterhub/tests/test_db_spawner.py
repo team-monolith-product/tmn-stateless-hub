@@ -45,6 +45,8 @@ def _make(monkeypatch, phase=Phase.STOPPED):
     s.pod_name = "jupyter-test"
     s.namespace = "default"
     s.storage_pvc_ensure = False
+    # profile_list 평가는 upstream 책임이므로 호출 여부만 검증한다.
+    monkeypatch.setattr(s, "load_user_options", AsyncMock())
 
     phases = []
     orig = s._set_phase
@@ -73,6 +75,24 @@ async def test_start_happy_path(monkeypatch):
     assert url == "http://10.0.0.1:8888"
     assert phases == [Phase.PENDING, Phase.STARTING, Phase.RUNNING]
     s.api.create_namespaced_pod.assert_awaited_once()
+    # helm 의 동적 설정(profile_list kubespawner_override)이 적용되는 유일한 경로.
+    s.load_user_options.assert_awaited_once()
+    # 부모 start() wrapper 가 _start_future 를 세팅해야 progress() 가 종료를 감지한다.
+    assert s._start_future is not None and s._start_future.done()
+
+
+async def test_start_wrapper_not_overridden():
+    """start() 는 KubeSpawner 의 sync wrapper(_start_future 세팅)를 그대로 써야 한다."""
+    from kubespawner import KubeSpawner
+
+    assert DBSpawner.start is KubeSpawner.start
+    assert DBSpawner._start is not KubeSpawner._start
+
+
+async def test_events_disabled_by_default(monkeypatch):
+    """event reflector 가 없으므로 progress 의 이벤트 스트림도 기본 비활성."""
+    s, _ = _make(monkeypatch)
+    assert s.events_enabled is False
 
 
 async def test_start_409_adopts_own_pod(monkeypatch):
