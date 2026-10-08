@@ -1,0 +1,85 @@
+name: Verify Stateless Hub App authentication
+'on':
+  pull_request:
+    paths:
+    - .github/workflows/verify-stateless-app.yml
+permissions:
+  contents: write
+jobs:
+  verify:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - env: prd
+          branch: main
+        - env: dev
+          branch: develop
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: '0'
+        ref: ${{ matrix.branch }}
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+    - name: Install deps
+      run: pip install --no-cache-dir tbump build
+    - name: Bump dev version
+      if: matrix.env == 'dev'
+      run: "git config --global user.email \"41898282+github-actions[bot]@users.noreply.github.com\"\ngit config --global user.name \"github-actions[bot]\"\nCURRENT=$(tbump current-version)\nif [[ \"$CURRENT\" =~ ^([0-9]+\\.[0-9]+\\.[0-9]+)b([0-9]+)$ ]]; then\n  NEW=\"${BASH_REMATCH[1]}b$((BASH_REMATCH[2]+1))\"\nelif [[ \"$CURRENT\" =~ ^([0-9]+\\.[0-9]+\\.[0-9]+)$ ]]; then\n  NEW=\"${BASH_REMATCH[1]}b1\"\nelse\n  echo \"unsupported version format: $CURRENT\" >&2\n  exit 1\nfi\ntbump --non-interactive --only-patch \"$NEW\"\ngit add -A\ngit commit -m \"auto: 버전 업 → ${NEW}\"\ngit push origin HEAD:refs/heads/verify-stateless-native-09228083-dev\n"
+    - id: version
+      run: echo "version=$(tbump current-version)" >> $GITHUB_OUTPUT
+    - name: Build wheel
+      run: python -m build --wheel
+    - name: Verify wheel contents
+      env:
+        EXPECTED_VERSION: ${{ steps.version.outputs.version }}
+      run: "python - <<'PY'\nfrom pathlib import Path\nimport os,zipfile\nwheel, = Path('dist').glob('jupyterhub-*.whl')\nwith zipfile.ZipFile(wheel) as z:\n    assert 'jupyterhub/alembic.ini' in z.namelist()\n    metadata, = [p for p in z.namelist() if p.endswith('.dist-info/METADATA')]\n    assert ('Version: '+os.environ['EXPECTED_VERSION']) in z.read(metadata).decode()\nprint('Verified wheel:', wheel.name, 'including alembic.ini')\nPY"
+    - name: Create GitHub App token
+      id: app-token
+      uses: actions/create-github-app-token@v3
+      with:
+        client-id: Iv23li2cfUIFIR5gL3Bp
+        private-key: ${{ secrets.AUTOMATION_APP_PRIVATE_KEY }}
+        owner: team-monolith-product
+        repositories: tmn-dockerfile
+        permission-contents: write
+    - name: Checkout tmn-dockerfile
+      uses: actions/checkout@v4
+      with:
+        repository: team-monolith-product/tmn-dockerfile
+        ref: ${{ matrix.branch }}
+        path: tmn-dockerfile
+        token: ${{ steps.app-token.outputs.token }}
+    - name: Update jupyterhub pin in tmn-dockerfile
+      env:
+        ENV: ${{ matrix.env }}
+        VERSION: ${{ steps.version.outputs.version }}
+      run: 'REQ="tmn-dockerfile/stateless-hub/requirements-${ENV}-server.txt"
+
+        sed -i.bak -E "s/^jupyterhub==.*/jupyterhub==${VERSION}/" "$REQ"
+
+        rm "${REQ}.bak"
+
+        '
+    - name: Commit and push tmn-dockerfile
+      env:
+        TARGET: verify-stateless-docker-09228083-${{ matrix.env }}
+        VERSION: ${{ steps.version.outputs.version }}
+      run: 'cd tmn-dockerfile
+
+        git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+        git config --global user.name "github-actions[bot]"
+
+        git commit --allow-empty -am "auto: stateless-hub jupyterhub pin → ${VERSION}"
+
+        git push -u origin HEAD:refs/heads/"${TARGET}"
+
+        '
