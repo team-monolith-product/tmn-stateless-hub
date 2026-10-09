@@ -12,5 +12,5 @@ jobs:
       repository_url: https://nexus.codle.io/repository/pypi-internal/
       dockerfile_branch: main
     secrets:
-      MACHINE_TOKEN: ${{ secrets.MACHINE_TOKEN }}
+      AUTOMATION_APP_PRIVATE_KEY: ${{ secrets.AUTOMATION_APP_PRIVATE_KEY }}
       NEXUS_PYPI_MACHINE_PASSWORD: ${{ secrets.NEXUS_PYPI_MACHINE_PASSWORD }}
