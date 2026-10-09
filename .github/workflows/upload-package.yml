@@ -14,7 +14,7 @@ on:
         type: string
         description: tmn-dockerfile 의 어느 브랜치에 jupyterhub pin 을 commit/push 할지 (dev → develop, prd → main).
     secrets:
-      MACHINE_TOKEN:
+      AUTOMATION_APP_PRIVATE_KEY:
         required: true
       NEXUS_PYPI_MACHINE_PASSWORD:
         required: true
@@ -48,8 +48,8 @@ jobs:
       - name: Bump dev version
         if: inputs.env == 'dev'
         run: |
-          git config --global user.email "github.machine.monolith@gmail.com"
-          git config --global user.name "github-machine-monolith"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
           CURRENT=$(tbump current-version)
           if [[ "$CURRENT" =~ ^([0-9]+\.[0-9]+\.[0-9]+)b([0-9]+)$ ]]; then
             NEW="${BASH_REMATCH[1]}b$((BASH_REMATCH[2]+1))"
@@ -76,13 +76,22 @@ jobs:
           password: ${{ secrets.NEXUS_PYPI_MACHINE_PASSWORD }}
           repository_url: ${{ inputs.repository_url }}
 
+      - name: Create GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: Iv23li2cfUIFIR5gL3Bp
+          private-key: ${{ secrets.AUTOMATION_APP_PRIVATE_KEY }}
+          owner: team-monolith-product
+          repositories: tmn-dockerfile
+          permission-contents: write
       - name: Checkout tmn-dockerfile
         uses: actions/checkout@v4
         with:
           repository: team-monolith-product/tmn-dockerfile
           ref: ${{ inputs.dockerfile_branch }}
           path: tmn-dockerfile
-          token: ${{ secrets.MACHINE_TOKEN }}
+          token: ${{ steps.app-token.outputs.token }}
 
       - name: Update jupyterhub pin in tmn-dockerfile
         env:
@@ -99,7 +108,7 @@ jobs:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
           cd tmn-dockerfile
-          git config --global user.email "github.machine.monolith@gmail.com"
-          git config --global user.name "github-machine-monolith"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
           git commit -am "auto: stateless-hub jupyterhub pin → ${VERSION}"
           git push -u origin "${TARGET}"
